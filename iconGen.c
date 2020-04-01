@@ -1,16 +1,18 @@
-
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
-	
+
+// defined variables
 #define DISP_WIDTH 320
 #define DISP_HEIGHT 240
 #define UNIT 20
 #define ITERATIONS 3
 #define BORDERS UNIT
 
-volatile int pixel_buffer_start; // global variable
+// global variables
+volatile int pixel_buffer_start; 
 
+//function def
 void clear_screen();
 void plot_pixel(int x, int y, short line_color);
 void wait_for_vsync();
@@ -22,15 +24,21 @@ int main(void){
     
     //set to pixel buffer
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-
+	
+	//set to switch and led address
+	volatile int * LEDR_ptr       = 0xFF200000;     // red LED address
+	volatile int * SW_ptr         = 0xFF200040;     // SW slide switch address
+	
     int currGen[DISP_WIDTH][DISP_HEIGHT] = {0};
     int prevGen[DISP_WIDTH][DISP_HEIGHT] = {0};
     int displayPrev1[DISP_WIDTH][DISP_HEIGHT] = {0};
     int displayPrev2[DISP_WIDTH][DISP_HEIGHT] = {0};
     int newArr[DISP_WIDTH][DISP_HEIGHT] = {0};
-	int tempArr[8][12] = {0};
+	int tempArr[DISP_WIDTH/2)/UNIT][(DISP_HEIGHT)/UNIT] = {0};
+	
     bool buf1 = true;
-    int iterations = 0;
+	int switchVal = 0;	
+	int iterations = 0;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the back buffer
@@ -46,135 +54,148 @@ int main(void){
     /* set back pixel buffer to start of SDRAM memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-    clear_screen();
 	
    	/* Intializes random number generator */
 	srand(time(NULL));
-	
-    randomInit(prevGen);
 	        
     while(1){
-        
-        while(iterations < ITERATIONS){
-                        
-            //Iterate through previous generation to determine new generation.
-            for (int i = 0; i < DISP_WIDTH; i++) {
-                for (int j = 0; j < DISP_HEIGHT; j++) {
-
-                    int neighbours = getNeighbours(prevGen, i, j);
-
-					//rules of life
-					/*
-					//2 or 3 neighbours, survive, everything else dies
-					if(neighbours == 3){
-						currGen[i][j] = 1;
-					} else if (neighbours == 2 && prevGen[i][j] == 1){
-						currGen[i][j] = 1;
-					} else{
-						currGen[i][j] = 0;
-					}
-					*/
-					if(prevGen[i][j] == 1){
-						if(neighbours == 2 || neighbours == 3) currGen[i][j] = 1;
-					} else if(neighbours <= 1) currGen[i][j] = 1;
-					else currGen[i][j] = 0;
-					
-                    //blackout old generation and plot new generation
-                    if(buf1) {
-                        if(displayPrev1[i][j] == 1){
-                            plot_pixel(i,j,0x0);
-                        }
-                    } else {
-                        if(displayPrev2[i][j] == 1){
-                            plot_pixel(i,j,0x0);
-                        }
-                    }
-
-                    if(currGen[i][j] == 1){
-                        plot_pixel(i,j,0xFFFF);
-                    }
-                }
-            }
-
-            //copy over current to prev
-            for (int i = 0; i < DISP_WIDTH; i++) {
-                for(int j = 0; j < DISP_HEIGHT; j++){
-                    if(buf1){
-                        displayPrev1[i][j] = currGen[i][j];
-                    } else{
-                        displayPrev2[i][j] = currGen[i][j];
-                    }
-                    prevGen[i][j] = currGen[i][j];
-                }
-            }
+		
+		//check switches
+		switchVal = *(SW_ptr);
+		*(LEDR_ptr) = switchVal;
+		
+		if(switchVal > 0){
+		    
+			randomInit(prevGen);
+			clear_screen();
 			
-			//pick any 5x8 rectangle
-			int x1 = rand()% (DISP_WIDTH - (DISP_WIDTH/2)/UNIT - 3);
-			int x2 = x1 + (DISP_WIDTH/2)/UNIT - 1 -(BORDERS/UNIT);
-			int y1 = rand()% (DISP_HEIGHT - (DISP_HEIGHT)/UNIT - 4);
-			int y2 = y1 + (DISP_HEIGHT)/UNIT - 4 - 2*(BORDERS/UNIT);
-	
-			//fill temp with the chosen 5x8 rectangle (contained in 8x12)
-			memset(tempArr, 0, sizeof(tempArr));	
-			for(int i = x1; i < x2; ++i){
-				for(int j = y1; j < y2; ++j){
-					tempArr[i - x1 + 3][j - y1 + 3] = prevGen[i][j];
+			while(switchVal > 0){
+				
+				switchVal = *(SW_ptr);
+
+				//Iterate through previous generation to determine new generation.
+				for (int i = 0; i < DISP_WIDTH; i++) {
+					for (int j = 0; j < DISP_HEIGHT; j++) {
+
+						int neighbours = getNeighbours(prevGen, i, j);
+
+						//rules of life
+						/*
+							//2 or 3 neighbours, survive, everything else dies
+							if(neighbours == 3){
+								currGen[i][j] = 1;
+							} else if (neighbours == 2 && prevGen[i][j] == 1){
+								currGen[i][j] = 1;
+							} else{
+								currGen[i][j] = 0;
+							}
+							*/
+						if(prevGen[i][j] == 1){
+							if(neighbours == 2 || neighbours == 3) currGen[i][j] = 1;
+						} else if(neighbours <= 1) currGen[i][j] = 1;
+						else currGen[i][j] = 0;
+
+						//blackout old generation and plot new generation
+						if(buf1) {
+							if(displayPrev1[i][j] == 1){
+								plot_pixel(i,j,0x0);
+							}
+						} else {
+							if(displayPrev2[i][j] == 1){
+								plot_pixel(i,j,0x0);
+							}
+						}
+
+						if(currGen[i][j] == 1){
+							plot_pixel(i,j,0xFFFF);
+						}
+					}
 				}
+
+				//copy over current to prev
+				for (int i = 0; i < DISP_WIDTH; i++) {
+					for(int j = 0; j < DISP_HEIGHT; j++){
+						if(buf1){
+							displayPrev1[i][j] = currGen[i][j];
+						} else{
+							displayPrev2[i][j] = currGen[i][j];
+						}
+						prevGen[i][j] = currGen[i][j];
+					}
+				}
+
+				//pick any 5x8 rectangle
+				int x1 = rand()% (DISP_WIDTH - (DISP_WIDTH/2)/UNIT - 3);
+				int x2 = x1 + (DISP_WIDTH/2)/UNIT - 1 -(BORDERS/UNIT);
+				int y1 = rand()% (DISP_HEIGHT - (DISP_HEIGHT)/UNIT - 4);
+				int y2 = y1 + (DISP_HEIGHT)/UNIT - 4 - 2*(BORDERS/UNIT);
+
+				//fill temp with the chosen 5x8 rectangle (contained in 8x12)
+				memset(tempArr, 0, sizeof(tempArr));	
+				for(int i = x1; i < x2; ++i){
+					for(int j = y1; j < y2; ++j){
+						tempArr[i - x1 + 3][j - y1 + 3] = prevGen[i][j];
+					}
+				}
+
+				//add outline to 8x12 array
+				setOutline(tempArr);
+
+				buf1 = !buf1;
+
+				wait_for_vsync(); // swap front and back buffers on VGA vertical sync
+				pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
+
+				iterations++;
+
 			}
 			
-			//add outline to 8x12 array
-        	setOutline(tempArr);
-            
-			buf1 = !buf1;
+		} else {
+	
+        
 
-            wait_for_vsync(); // swap front and back buffers on VGA vertical sync
-            pixel_buffer_start = *(pixel_ctrl_ptr + 1); // new back buffer
 			
-            iterations++;
+			clear_screen();
+
+			//enlarge
+			for(int i = 0; i < (DISP_WIDTH/2)/UNIT; ++i){
+				for(int j = 0; j < (DISP_HEIGHT)/UNIT; ++j){
+
+					for(int k = 0; k < UNIT; ++k){
+						for(int l = 0; l < UNIT; ++l){
+							newArr[(i*UNIT)+k][(j*UNIT)+l] = tempArr[i][j];
+						}
+					}
+
+				}
+			}
+
+			//reflect
+			for(int i = 0; i < DISP_WIDTH/2; ++i){
+				for(int j = 0; j < DISP_HEIGHT; ++j){
+					newArr[(DISP_WIDTH - 1) - i][j] = newArr[i][j];        
+				}
+			}
+
+			//redraw
+			for(int i = 0; i < DISP_WIDTH; i++){
+				for(int j = 0; j < DISP_HEIGHT; j++){
+					if(newArr[i][j] == 1) plot_pixel(i, j, 0x039F);
+					else if(newArr[i][j] == 2) plot_pixel(i, j, 0x1212);
+					else plot_pixel(i,j, 0xffff);
+				}
+			}    
+
+			/* now, swap the front/back buffers, to set the front buffer location */
+			wait_for_vsync();
+
+			/* initialize a pointer to the pixel buffer, used by drawing functions */
+			pixel_buffer_start = *(pixel_ctrl_ptr + 1);
+		}
 			
-        }
-        
-        clear_screen();
-		
-		//enlarge
-        for(int i = 0; i < (DISP_WIDTH/2)/UNIT; ++i){
-            for(int j = 0; j < (DISP_HEIGHT)/UNIT; ++j){
-    
-                for(int k = 0; k < UNIT; ++k){
-                    for(int l = 0; l < UNIT; ++l){
-                        newArr[(i*UNIT)+k][(j*UNIT)+l] = tempArr[i][j];
-                    }
-                }
+	}
 
-            }
-        }
-        
-        //reflect
-        for(int i = 0; i < DISP_WIDTH/2; ++i){
-            for(int j = 0; j < DISP_HEIGHT; ++j){
-                newArr[(DISP_WIDTH - 1) - i][j] = newArr[i][j];        
-            }
-        }
-        
-        //redraw
-        for(int i = 0; i < DISP_WIDTH; i++){
-            for(int j = 0; j < DISP_HEIGHT; j++){
-                if(newArr[i][j] == 1) plot_pixel(i, j, 0x039F);
-                else if(newArr[i][j] == 2) plot_pixel(i, j, 0x1212);
-				else plot_pixel(i,j, 0x0);
-            }
-        }    
-        
-        /* now, swap the front/back buffers, to set the front buffer location */
-        wait_for_vsync();
-
-        /* initialize a pointer to the pixel buffer, used by drawing functions */
-        pixel_buffer_start = *(pixel_ctrl_ptr + 1);
-        
-    }
-    
 }
-
 //draw in neighbours
 void setOutline(int arr[(DISP_WIDTH/2)/UNIT][(DISP_HEIGHT)/UNIT]){
 
