@@ -34,7 +34,7 @@ int main(void){
     int displayPrev1[DISP_WIDTH][DISP_HEIGHT] = {0};
     int displayPrev2[DISP_WIDTH][DISP_HEIGHT] = {0};
     int newArr[DISP_WIDTH][DISP_HEIGHT] = {0};
-	int tempArr[DISP_WIDTH/2)/UNIT][(DISP_HEIGHT)/UNIT] = {0};
+	int tempArr[DISP_WIDTH/2/UNIT][(DISP_HEIGHT)/UNIT] = {0};
 	
     bool buf1 = true;
 	int switchVal = 0;	
