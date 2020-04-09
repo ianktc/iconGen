@@ -76,15 +76,18 @@ int main(void){
 		//hard reset
 		if(switchVal > 0){
 			//implement user init here (edit prevGen)
-			//userInit(prevGen);
 			randomInit(prevGen);
 			clear_screen();
 			clear_array(newArr);
-		} 
-		
+		} else if (keyBoard == 0x5A){
+			clear_screen();	
+			clear_array(newArr);
+			userInit(prevGen);
+		}
+			
 		//game of life
-		while(switchVal > 0){
-
+		//while(switchVal > 0){
+		if(keyBoard == 0x29){	
 			//check switches again
 			switchVal = *(SW_ptr);
 
