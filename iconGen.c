@@ -17,6 +17,7 @@ void clear_screen();
 void plot_pixel(int x, int y, short line_color);
 void wait_for_vsync();
 int getNeighbours(int arr[DISP_WIDTH][DISP_HEIGHT], int x, int y);
+void userInit(int arr[DISP_WIDTH][DISP_HEIGHT]);
 void randomInit(int arr[DISP_WIDTH][DISP_HEIGHT]);
 void setOutline(int arr[(DISP_WIDTH/2)/UNIT][(DISP_HEIGHT)/UNIT]);
 void clear_array(int tempArr[DISP_WIDTH/2/UNIT][(DISP_HEIGHT)/UNIT]);
@@ -27,7 +28,10 @@ int main(void){
     volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 	
 	//set to switch address
-	volatile int * SW_ptr         = 0xFF200040;     // SW slide switch address
+	volatile int * SW_ptr = 0xFF200040;     // SW slide switch address
+	
+	//set to ps2 keyboard
+	volatile int * PS2_ptr = 0xFF200100;
 	
     int currGen[DISP_WIDTH][DISP_HEIGHT] = {0};
     int prevGen[DISP_WIDTH][DISP_HEIGHT] = {0};
@@ -40,6 +44,7 @@ int main(void){
 	bool init = false;
 	bool plotted = false;
 	int switchVal = 0;	
+	int keyBoard = 0;
 	int iterations = 0;
 
     /* set front pixel buffer to start of FPGA On-chip memory */
@@ -65,16 +70,22 @@ int main(void){
 		//check switches
 		switchVal = *(SW_ptr);
 		
+		//check keyboard
+		keyBoard = *(PS2_ptr);
+		
 		//hard reset
 		if(switchVal > 0){
+			//implement user init here (edit prevGen)
+			//userInit(prevGen);
 			randomInit(prevGen);
 			clear_screen();
 			clear_array(newArr);
-		}
-			
+		} 
+		
 		//game of life
 		while(switchVal > 0){
 
+			//check switches again
 			switchVal = *(SW_ptr);
 
 			//Iterate through previous generation to determine new generation.
@@ -97,6 +108,8 @@ int main(void){
 					}
 					
 					*/
+					
+					
 					
 					if(prevGen[i][j] == 1){
 					if(neighbours == 2 || neighbours == 3) currGen[i][j] = 1;
@@ -219,6 +232,25 @@ int main(void){
 	}
 
 }
+
+//user init
+void userInit(int arr[DISP_WIDTH][DISP_HEIGHT]){
+    for (int i = 0; i < DISP_WIDTH; ++i){
+        for (int j = 0; j < DISP_HEIGHT; ++j){
+            arr[i][j] = rand()%2;
+        }
+    }
+}
+
+//init
+void randomInit(int arr[DISP_WIDTH][DISP_HEIGHT]){
+    for (int i = 0; i < DISP_WIDTH; ++i){
+        for (int j = 0; j < DISP_HEIGHT; ++j){
+            arr[i][j] = rand()%2;
+        }
+    }
+}
+
 //draw in neighbours
 void setOutline(int arr[(DISP_WIDTH/2)/UNIT][(DISP_HEIGHT)/UNIT]){
 
@@ -278,15 +310,6 @@ int getNeighbours(int arr[DISP_WIDTH][DISP_HEIGHT], int x, int y){
     result -= arr[x][y];
     
     return result;
-}
-
-//init
-void randomInit(int arr[DISP_WIDTH][DISP_HEIGHT]){
-    for (int i = 0; i < DISP_WIDTH; ++i){
-        for (int j = 0; j < DISP_HEIGHT; ++j){
-            arr[i][j] = rand()%2;
-        }
-    }
 }
 
 //pixel plot
